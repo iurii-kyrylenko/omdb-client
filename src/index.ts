@@ -1,32 +1,49 @@
-import { config } from "dotenv";
-import pkgSequelize from "sequelize";
-const { Sequelize, QueryTypes } = pkgSequelize;
+// Raw queries
+import pkg from "sequelize";
+const { QueryTypes } = pkg;
+import { sequelize } from "./models/run-sequelize.js";
 
-config();
+// Models
+import { Movie, MovieAttributes } from "./models/Movie.js";
 
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  host: process.env.DB_HOST,
-  username: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME
-});
+interface Result {
+  count: number;
+  movies: MovieAttributes[];
+}
+
+function rawQuery(): Promise<Record<string, unknown>[]> {
+  return sequelize.query("select * from people limit 4", {
+    type: QueryTypes.SELECT
+  });
+}
+
+async function useModel(): Promise<Result> {
+  const count = await Movie.count();
+
+  const movies = await Movie.findAll({
+    limit: 8
+  });
+
+  const attrs: MovieAttributes[] = movies.map(m => {
+    return {
+      id: m.id,
+      name: m.name,
+      runtime: m.runtime
+    };
+  });
+
+  return { count, movies: attrs };
+}
 
 async function main() {
   try {
-    await sequelize.authenticate();
+    const people = await rawQuery();
+    console.log(people);
 
-    console.log("Connection has been established.");
-
-    const result = await sequelize.query("select count(1) from movies", {
-      type: QueryTypes.SELECT
-    });
-
-    console.log(result);
+    const movies = await useModel();
+    console.log(movies);
 
     await sequelize.close();
-
-    console.log("Connection has been closed.");
   } catch (error) {
     console.error(error);
   }
